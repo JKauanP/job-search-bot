@@ -40,7 +40,7 @@ RESULTS_PER_PAGE = int(os.environ.get("ADZUNA_RESULTS_PER_PAGE", "20"))
 SEEN_FILE = "seen_jobs.json"
 SEEN_RETENTION_DAYS = 14
 
-GEMINI_MODEL = "gemini-2.5-flash-lite"  # modelo do tier gratuito
+GEMINI_MODEL = "gemini-3.5-flash-lite"  # modelo GA atual, do tier gratuito
 
 
 def load_seen():
