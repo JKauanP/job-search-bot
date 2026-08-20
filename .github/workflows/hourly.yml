@@ -5,6 +5,10 @@ on:
     - cron: "0 * * * *"
   workflow_dispatch: {}
 
+concurrency:
+  group: busca-vagas
+  cancel-in-progress: false
+
 permissions:
   contents: write
 
@@ -32,6 +36,8 @@ jobs:
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           DEST_EMAIL: ${{ secrets.DEST_EMAIL }}
           RESUME_TEXT: ${{ secrets.RESUME_TEXT }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: python main.py
 
       - name: Salvar histórico de vagas já vistas
@@ -39,5 +45,8 @@ jobs:
           git config user.name "job-search-bot"
           git config user.email "job-search-bot@users.noreply.github.com"
           git add seen_jobs.json
-          git diff --staged --quiet || git commit -m "Atualiza histórico de vagas vistas"
+          git diff --staged --quiet && echo "Nada para commitar." && exit 0
+          git commit -m "Atualiza histórico de vagas vistas"
+          git pull --rebase origin main
           git push
+

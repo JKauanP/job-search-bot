@@ -25,6 +25,8 @@ GMAIL_ADDRESS = os.environ["GMAIL_ADDRESS"]
 GMAIL_APP_PASSWORD = os.environ["GMAIL_APP_PASSWORD"]
 DEST_EMAIL = os.environ.get("DEST_EMAIL", GMAIL_ADDRESS)
 RESUME_TEXT = os.environ["RESUME_TEXT"]
+SUPABASE_URL = os.environ["SUPABASE_URL"]
+SUPABASE_KEY = os.environ["SUPABASE_KEY"]
 
 # Palavras-chave padrão: refletem o perfil real do currículo (estágio/júnior/trainee).
 # "desenvolvedor pleno/sênior" NÃO entra aqui de propósito — não faz sentido gastar
@@ -92,7 +94,16 @@ Empresa: {job.get('company', {}).get('display_name', 'Não informado')}
 Descrição: {job.get('description', '')}
 
 Responda ESTRITAMENTE em JSON válido, sem markdown, sem texto antes ou depois, no formato:
-{{"score": <inteiro de 0 a 100>, "justificativa": "<2-3 frases: por que o candidato pode se candidatar e quais lacunas existem, se houver>"}}
+{{
+  "score": <inteiro de 0 a 100>,
+  "justificativa": "<2-3 frases: por que o candidato pode se candidatar e quais lacunas existem, se houver>",
+  "nivel": "<'estagio', 'junior', 'pleno' ou 'senior'>",
+  "modalidade": "<'remoto', 'hibrido' ou 'presencial'>"
+}}
+
+Regras adicionais:
+- nivel: classifique em "estagio", "junior", "pleno" ou "senior".
+- modalidade: classifique em "remoto", "hibrido" ou "presencial". Se a vaga não deixar claro a modalidade, infira a partir da descrição e, na dúvida, use "presencial" como padrão conservador.
 """
     url = (
         f"https://generativelanguage.googleapis.com/v1beta/models/"
@@ -112,6 +123,47 @@ Responda ESTRITAMENTE em JSON válido, sem markdown, sem texto antes ou depois, 
     text = text.strip()
 
     return json.loads(text)
+
+
+def save_to_supabase(job, ev, data_avaliacao):
+    url = f"{SUPABASE_URL.rstrip('/')}/rest/v1/vagas"
+    headers = {
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Content-Type": "application/json",
+        "Prefer": "return=minimal"
+    }
+
+    lat = job.get("latitude")
+    lng = job.get("longitude")
+
+    try:
+        lat_val = float(lat) if lat is not None else None
+    except (ValueError, TypeError):
+        lat_val = None
+
+    try:
+        lng_val = float(lng) if lng is not None else None
+    except (ValueError, TypeError):
+        lng_val = None
+
+    payload = {
+        "id": str(job.get("id")),
+        "titulo": job.get("title", ""),
+        "empresa": job.get("company", {}).get("display_name", "Não informado"),
+        "descricao": job.get("description", ""),
+        "link": job.get("redirect_url", ""),
+        "latitude": lat_val,
+        "longitude": lng_val,
+        "score": int(ev.get("score", 0)),
+        "justificativa": ev.get("justificativa", ""),
+        "nivel": ev.get("nivel", "junior"),
+        "modalidade": ev.get("modalidade", "presencial"),
+        "data_avaliacao": data_avaliacao,
+    }
+
+    resp = requests.post(url, json=payload, headers=headers, timeout=30)
+    resp.raise_for_status()
 
 
 def send_email(matches):
@@ -164,6 +216,11 @@ def main():
             print(f"Erro avaliando vaga {jid}: {e}", file=sys.stderr)
             continue
 
+        try:
+            save_to_supabase(job, ev, now_iso)
+        except Exception as e:
+            print(f"Erro salvando vaga {jid} no Supabase: {e}", file=sys.stderr)
+
         seen[jid] = now_iso
         if ev.get("score", 0) >= SCORE_THRESHOLD:
             matches.append({"job": job, "eval": ev})
@@ -177,3 +234,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
