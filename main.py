@@ -168,7 +168,7 @@ def main():
         if ev.get("score", 0) >= SCORE_THRESHOLD:
             matches.append({"job": job, "eval": ev})
 
-        time.sleep(2)  # respeita o limite de 15 req/min do tier gratuito do Gemini
+        time.sleep(4.5)  # respeita o limite de 15 req/min do tier gratuito do Gemini
 
     send_email(matches)
     save_seen(seen)
