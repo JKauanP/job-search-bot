@@ -158,13 +158,13 @@ def main():
         if not jid or jid in seen:
             continue
         novas += 1
-        seen[jid] = now_iso
         try:
             ev = evaluate_with_gemini(job)
         except Exception as e:
             print(f"Erro avaliando vaga {jid}: {e}", file=sys.stderr)
             continue
 
+        seen[jid] = now_iso
         if ev.get("score", 0) >= SCORE_THRESHOLD:
             matches.append({"job": job, "eval": ev})
 
