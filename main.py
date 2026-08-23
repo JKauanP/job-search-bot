@@ -166,6 +166,20 @@ def save_to_supabase(job, ev, data_avaliacao):
     resp.raise_for_status()
 
 
+def cleanup_old_jobs():
+    try:
+        cutoff = (datetime.now(timezone.utc) - timedelta(hours=72)).isoformat()
+        url = f"{SUPABASE_URL.rstrip('/')}/rest/v1/vagas?data_avaliacao=lt.{cutoff}"
+        headers = {
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}",
+        }
+        resp = requests.delete(url, headers=headers, timeout=30)
+        resp.raise_for_status()
+    except Exception as e:
+        print(f"Erro ao limpar vagas antigas no Supabase: {e}", file=sys.stderr)
+
+
 def send_email(matches):
     if not matches:
         print("Nenhuma vaga compatível nesta execução — email não enviado.")
@@ -199,6 +213,7 @@ def send_email(matches):
 
 
 def main():
+    cleanup_old_jobs()
     seen = load_seen()
     jobs = fetch_jobs()
     now_iso = datetime.now(timezone.utc).isoformat()
