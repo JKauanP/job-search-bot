@@ -169,13 +169,15 @@ def save_to_supabase(job, ev, data_avaliacao):
 def cleanup_old_jobs():
     try:
         cutoff = (datetime.now(timezone.utc) - timedelta(hours=72)).isoformat()
-        url = f"{SUPABASE_URL.rstrip('/')}/rest/v1/vagas?data_avaliacao=lt.{cutoff}"
+        url = f"{SUPABASE_URL.rstrip('/')}/rest/v1/vagas"
+        params = {"data_avaliacao": f"lt.{cutoff}"}
         headers = {
             "apikey": SUPABASE_KEY,
             "Authorization": f"Bearer {SUPABASE_KEY}",
         }
-        resp = requests.delete(url, headers=headers, timeout=30)
+        resp = requests.delete(url, headers=headers, params=params, timeout=30)
         resp.raise_for_status()
+        print(f"[cleanup_old_jobs] Status: {resp.status_code} | Content-Range: {resp.headers.get('Content-Range')} | Response: {resp.text}")
     except Exception as e:
         print(f"Erro ao limpar vagas antigas no Supabase: {e}", file=sys.stderr)
 
