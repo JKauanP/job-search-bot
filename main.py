@@ -166,6 +166,32 @@ def save_to_supabase(job, ev, data_avaliacao):
     resp.raise_for_status()
 
 
+def load_perfil():
+    global RESUME_TEXT, KEYWORDS, SCORE_THRESHOLD
+    try:
+        url = f"{SUPABASE_URL.rstrip('/')}/rest/v1/perfil"
+        params = {"select": "curriculo,palavras_chave,score_minimo"}
+        headers = {
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}",
+        }
+        resp = requests.get(url, headers=headers, params=params, timeout=30)
+        resp.raise_for_status()
+        data = resp.json()
+        if data and isinstance(data, list) and len(data) > 0:
+            perfil = data[0]
+            print(f"Perfil carregado do Supabase: score_minimo={perfil.get('score_minimo')}, palavras_chave='{perfil.get('palavras_chave')}'")
+            if perfil.get("curriculo"):
+                RESUME_TEXT = perfil["curriculo"]
+            if perfil.get("palavras_chave"):
+                KEYWORDS = perfil["palavras_chave"]
+            if perfil.get("score_minimo") is not None:
+                SCORE_THRESHOLD = int(perfil["score_minimo"])
+    except Exception as e:
+        print(f"Erro ao carregar perfil do Supabase: {e}", file=sys.stderr)
+        print("Usando RESUME_TEXT/KEYWORDS/SCORE_THRESHOLD dos Secrets como fallback.")
+
+
 def cleanup_old_jobs():
     try:
         cutoff = (datetime.now(timezone.utc) - timedelta(hours=72)).isoformat()
@@ -215,6 +241,7 @@ def send_email(matches):
 
 
 def main():
+    load_perfil()
     cleanup_old_jobs()
     seen = load_seen()
     jobs = fetch_jobs()
